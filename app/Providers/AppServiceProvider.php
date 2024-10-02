@@ -2,9 +2,12 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\ServiceProvider;
+use App\Repositories\UserRepositoryInterface;
+use App\Repositories\UserRepository;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\ServiceProvider;
+use App\Services\UserService;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -13,20 +16,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
-    }
-
-    /**
-     * Bootstrap any application services.
-     */
-    public function boot(): void
-    {
-        Gate::define('is-admin', function (User $user): bool {
-            return $user->isAdm();
-        });
-
-        Gate::define('owner', function (User $user, object $register): bool {
-            return $user->id === $register->user_id;
+        $this->app->bind(UserRepositoryInterface::class, UserRepository::class);
+        $this->app->bind(UserService::class, function ($app) 
+        {
+            return new UserService($app->make(UserRepositoryInterface::class));
         });
     }
+    
 }

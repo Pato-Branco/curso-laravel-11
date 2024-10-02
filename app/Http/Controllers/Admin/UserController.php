@@ -2,22 +2,34 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Repositories\UserRepositoryInterface;
+use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Models\User;
-use Illuminate\Http\Request;
+use App\Services\UserService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 
 class UserController extends Controller
 {
-    public function index()
-    {
-        $users = User::paginate(15); // User::all();
 
-        return view('admin.users.index', compact('users'));
+
+
+    public function __construct(protected UserService $userService)
+    {
+        
     }
+
+    public function index()
+{
+    // Ao invés de all(), use paginate()
+    $users = $this->userService->getAllUsersPerPage(10); // 10 usuários por página
+    return view('admin.users.index', compact('users'));
+}
+
+    
 
     public function create()
     {
@@ -26,11 +38,9 @@ class UserController extends Controller
 
     public function store(StoreUserRequest $request)
     {
-        User::create($request->validated());
-
-        return redirect()
-            ->route('users.index')
-            ->with('success', 'Usuário criado com sucesso');
+        $data = $request->only(['name', 'email', 'password']);
+        $user = $this->userService->createUser($data);
+        return redirect()->route('users.index');
     }
 
     public function edit(string $id)
@@ -46,44 +56,21 @@ class UserController extends Controller
 
     public function update(UpdateUserRequest $request, string $id)
     {
-        if (!$user = User::find($id)) {
-            return back()->with('message', 'Usuário não encontrado');
-        }
-        $data = $request->only('name', 'email');
-        if ($request->password) {
-            $data['password'] = bcrypt($request->password);
-        }
-        $user->update($data);
-
-        return redirect()
-            ->route('users.index')
-            ->with('success', 'Usuário editado com sucesso');
+        $data = $request->only(['name', 'email']);
+        $this->userService->updateUser($id, $data);
+        return redirect()->route('users.index');
     }
 
     public function show(string $id)
     {
-        if (!$user = User::find($id)) {
-            return redirect()->route('users.index')->with('message', 'Usuário não encontrado');
-        }
-
+        $user = $this->userService->getUserById($id);
         return view('admin.users.show', compact('user'));
     }
 
     public function destroy(string $id)
     {
-        // if (Gate::denies('is-admin')) {
-        //     return back()->with('message', 'Você não é um administrador');
-        // }
-        if (!$user = User::find($id)) {
-            return redirect()->route('users.index')->with('message', 'Usuário não encontrado');
-        }
-        if (Auth::user()->id === $user->id) {
-            return back()->with('message', 'Você não pode deletar o seu próprio perfil');
-        }
-        $user->delete();
-
-        return redirect()
-            ->route('users.index')
-            ->with('success', 'Usuário deletado com sucesso');
+        $this->userService->deleteUser($id);
+        return redirect()->route('users.index');
     }
+
 }
